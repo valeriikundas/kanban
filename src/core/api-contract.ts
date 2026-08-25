@@ -343,6 +343,24 @@ export const runtimeProjectSummarySchema = z.object({
 });
 export type RuntimeProjectSummary = z.infer<typeof runtimeProjectSummarySchema>;
 
+// runtimeBoardCardSchema has a .transform(), so this intersection re-runs that
+// normalization a second time during validation. That's safe: the transform
+// is idempotent, it just re-derives the same fields from already-normalized input.
+export const runtimeKanbanAggregateCardSchema = runtimeBoardCardSchema.and(
+	z.object({
+		projectId: z.string(),
+		projectName: z.string(),
+		columnId: runtimeBoardColumnIdSchema,
+	}),
+);
+export type RuntimeKanbanAggregateCard = z.infer<typeof runtimeKanbanAggregateCardSchema>;
+
+export const runtimeKanbanAggregateStateResponseSchema = z.object({
+	cards: z.array(runtimeKanbanAggregateCardSchema),
+	failedProjectIds: z.array(z.string()),
+});
+export type RuntimeKanbanAggregateStateResponse = z.infer<typeof runtimeKanbanAggregateStateResponseSchema>;
+
 export const runtimeTaskWorkspaceMetadataSchema = z.object({
 	taskId: z.string(),
 	path: z.string(),

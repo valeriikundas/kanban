@@ -53,6 +53,7 @@ import type {
 	RuntimeGitSyncResponse,
 	RuntimeHookIngestRequest,
 	RuntimeHookIngestResponse,
+	RuntimeKanbanAggregateStateResponse,
 	RuntimeOpenFileRequest,
 	RuntimeOpenFileResponse,
 	RuntimeProjectAddRequest,
@@ -144,6 +145,7 @@ import {
 	runtimeGitSyncResponseSchema,
 	runtimeHookIngestRequestSchema,
 	runtimeHookIngestResponseSchema,
+	runtimeKanbanAggregateStateResponseSchema,
 	runtimeOpenFileRequestSchema,
 	runtimeOpenFileResponseSchema,
 	runtimeProjectAddRequestSchema,
@@ -369,6 +371,9 @@ export interface RuntimeTrpcContext {
 	};
 	hooksApi: {
 		ingest: (input: RuntimeHookIngestRequest) => Promise<RuntimeHookIngestResponse>;
+	};
+	kanbanApi: {
+		getAggregateState: () => Promise<RuntimeKanbanAggregateStateResponse>;
 	};
 }
 
@@ -689,6 +694,11 @@ export const runtimeAppRouter = t.router({
 			.query(async ({ ctx, input }) => {
 				return await ctx.workspaceApi.loadCommitDiff(ctx.workspaceScope, input);
 			}),
+	}),
+	kanban: t.router({
+		getAggregateState: t.procedure.output(runtimeKanbanAggregateStateResponseSchema).query(async ({ ctx }) => {
+			return await ctx.kanbanApi.getAggregateState();
+		}),
 	}),
 	projects: t.router({
 		list: t.procedure.output(runtimeProjectsResponseSchema).query(async ({ ctx }) => {
