@@ -52,13 +52,21 @@ export function countTasksByColumn(board: BoardData): {
 	return counts;
 }
 
+const ALL_PROJECTS_PATH_SEGMENT = "all";
+export const ALL_PROJECTS_PATHNAME = `/${ALL_PROJECTS_PATH_SEGMENT}`;
+
+export function isAllProjectsPathname(pathname: string): boolean {
+	const segments = pathname.split("/").filter((segment) => segment.length > 0);
+	return segments[0] === ALL_PROJECTS_PATH_SEGMENT;
+}
+
 export function parseProjectIdFromPathname(pathname: string): string | null {
 	const segments = pathname.split("/").filter((segment) => segment.length > 0);
 	if (segments.length === 0) {
 		return null;
 	}
 	const firstSegment = segments[0];
-	if (!firstSegment) {
+	if (!firstSegment || firstSegment === ALL_PROJECTS_PATH_SEGMENT) {
 		return null;
 	}
 	try {

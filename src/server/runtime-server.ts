@@ -36,11 +36,12 @@ import {
 	validatePasscode,
 	validateSession,
 } from "../security/passcode-manager";
-import { loadWorkspaceContextById } from "../state/workspace-state";
+import { loadWorkspaceBoardById, loadWorkspaceContextById } from "../state/workspace-state";
 import type { TerminalSessionManager } from "../terminal/session-manager";
 import { createTerminalWebSocketBridge } from "../terminal/ws-server";
 import { type RuntimeTrpcContext, type RuntimeTrpcWorkspaceScope, runtimeAppRouter } from "../trpc/app-router";
 import { createHooksApi } from "../trpc/hooks-api";
+import { createKanbanApi } from "../trpc/kanban-api";
 import { createProjectsApi } from "../trpc/projects-api";
 import { createRuntimeApi } from "../trpc/runtime-api";
 import { createWorkspaceApi } from "../trpc/workspace-api";
@@ -245,6 +246,11 @@ export async function createRuntimeServer(deps: CreateRuntimeServerDependencies)
 				ensureTerminalManagerForWorkspace: deps.ensureTerminalManagerForWorkspace,
 				broadcastRuntimeWorkspaceStateUpdated: deps.runtimeStateHub.broadcastRuntimeWorkspaceStateUpdated,
 				broadcastTaskReadyForReview: deps.runtimeStateHub.broadcastTaskReadyForReview,
+			}),
+			kanbanApi: createKanbanApi({
+				listProjectsLight: deps.workspaceRegistry.listProjectsLight,
+				loadWorkspaceBoard: loadWorkspaceBoardById,
+				warn: deps.warn,
 			}),
 		};
 	};

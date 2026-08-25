@@ -1,11 +1,12 @@
 // Main React composition root for the browser app.
 // Keep this file focused on wiring top-level hooks and surfaces together, and
 // push runtime-specific orchestration down into hooks and service modules.
+
 import { FolderOpen } from "lucide-react";
 import type { ReactElement } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
 import { AddProjectDialog } from "@/components/add-project-dialog";
+import { AllProjectsBoard } from "@/components/all-projects-board";
 import { notifyError, showAppToast } from "@/components/app-toaster";
 import { CardDetailView } from "@/components/card-detail-view";
 import { ClearTrashDialog } from "@/components/clear-trash-dialog";
@@ -31,7 +32,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { UpdateNotificationController } from "@/components/update-notification-controller";
 import { createInitialBoardData } from "@/data/board-data";
-import { createIdleTaskSession } from "@/hooks/app-utils";
+import { createIdleTaskSession, isAllProjectsPathname } from "@/hooks/app-utils";
 import { KanbanAccessBlockedFallback } from "@/hooks/kanban-access-blocked-fallback";
 import { RuntimeDisconnectedFallback } from "@/hooks/runtime-disconnected-fallback";
 import { useAppHotkeys } from "@/hooks/use-app-hotkeys";
@@ -43,6 +44,7 @@ import { useFeaturebaseFeedbackWidget } from "@/hooks/use-featurebase-feedback-w
 import { useGitActions } from "@/hooks/use-git-actions";
 import { useHomeSidebarAgentPanel } from "@/hooks/use-home-sidebar-agent-panel";
 import { useKanbanAccessGate } from "@/hooks/use-kanban-access-gate";
+import { useKanbanAggregateState } from "@/hooks/use-kanban-aggregate-state";
 import { useOpenWorkspace } from "@/hooks/use-open-workspace";
 import { parseRemovedProjectPathFromStreamError, useProjectNavigation } from "@/hooks/use-project-navigation";
 import { useProjectUiState } from "@/hooks/use-project-ui-state";
@@ -89,6 +91,13 @@ export default function App(): ReactElement {
 	const [homeSidebarSection, setHomeSidebarSection] = useState<"projects" | "agent">("projects");
 	const [isClearTrashDialogOpen, setIsClearTrashDialogOpen] = useState(false);
 	const [isGitHistoryOpen, setIsGitHistoryOpen] = useState(false);
+	const [isAllProjectsViewOpen, setIsAllProjectsViewOpen] = useState(() => {
+		if (typeof window === "undefined") {
+			return false;
+		}
+		return isAllProjectsPathname(window.location.pathname);
+	});
+	const pendingAllProjectsTaskOpenRef = useRef<{ projectId: string; taskId: string } | null>(null);
 	const [pendingTaskStartAfterEditId, setPendingTaskStartAfterEditId] = useState<string | null>(null);
 	const taskEditorResetRef = useRef<() => void>(() => {});
 	const lastStreamErrorRef = useRef<string | null>(null);
@@ -98,6 +107,21 @@ export default function App(): ReactElement {
 		setPendingTaskStartAfterEditId(null);
 		taskEditorResetRef.current();
 	}, []);
+	const handleSelectAllProjectsView = useCallback(() => {
+		setIsGitHistoryOpen(false);
+		pendingAllProjectsTaskOpenRef.current = null;
+		setIsAllProjectsViewOpen(true);
+	}, []);
+	const handleAllProjectsViewOpenChangeRequested = useCallback(
+		(open: boolean) => {
+			if (open) {
+				handleSelectAllProjectsView();
+				return;
+			}
+			setIsAllProjectsViewOpen(false);
+		},
+		[handleSelectAllProjectsView],
+	);
 	const {
 		currentProjectId,
 		projects,
@@ -125,7 +149,14 @@ export default function App(): ReactElement {
 		resetProjectNavigationState,
 	} = useProjectNavigation({
 		onProjectSwitchStart: handleProjectSwitchStart,
+		isAllProjectsViewOpen,
+		onAllProjectsViewOpenChangeRequested: handleAllProjectsViewOpenChangeRequested,
 	});
+	useEffect(() => {
+		if (hasNoProjects && isAllProjectsViewOpen) {
+			setIsAllProjectsViewOpen(false);
+		}
+	}, [hasNoProjects, isAllProjectsViewOpen]);
 	const activeNotificationWorkspaceId = navigationCurrentProjectId;
 	const isDocumentVisible = useDocumentVisibility();
 	const isInitialRuntimeLoad =
@@ -552,6 +583,7 @@ export default function App(): ReactElement {
 		if (hasNoProjects) {
 			return;
 		}
+		setIsAllProjectsViewOpen(false);
 		setIsGitHistoryOpen((current) => !current);
 	}, [hasNoProjects]);
 	const handleCloseGitHistory = useCallback(() => {
@@ -598,6 +630,46 @@ export default function App(): ReactElement {
 		taskGitActionLoadingByTaskId,
 		runAutoReviewGitAction,
 	});
+
+	const {
+		cards: allProjectsCards,
+		failedProjectIds: allProjectsFailedProjectIds,
+		isLoading: isAllProjectsLoading,
+		error: allProjectsError,
+		refresh: refreshAllProjectsState,
+	} = useKanbanAggregateState(isAllProjectsViewOpen);
+	const handleOpenAllProjectsCard = useCallback(
+		(projectId: string, taskId: string) => {
+			setIsAllProjectsViewOpen(false);
+			if (projectId === currentProjectId) {
+				handleCardSelect(taskId);
+				return;
+			}
+			pendingAllProjectsTaskOpenRef.current = { projectId, taskId };
+			handleSelectProject(projectId);
+		},
+		[currentProjectId, handleCardSelect, handleSelectProject],
+	);
+	useEffect(() => {
+		const pending = pendingAllProjectsTaskOpenRef.current;
+		if (!pending || pending.projectId !== currentProjectId) {
+			return;
+		}
+		if (!findCardSelection(board, pending.taskId)) {
+			return;
+		}
+		pendingAllProjectsTaskOpenRef.current = null;
+		handleCardSelect(pending.taskId);
+	}, [board, currentProjectId, handleCardSelect]);
+	useEffect(() => {
+		const pending = pendingAllProjectsTaskOpenRef.current;
+		if (pending && pending.projectId !== navigationCurrentProjectId) {
+			// The requested project changed through some other navigation path
+			// (sidebar click, browser back/forward, project removal fallback, ...)
+			// before the original target project finished loading.
+			pendingAllProjectsTaskOpenRef.current = null;
+		}
+	}, [navigationCurrentProjectId]);
 
 	const {
 		handleCreateAndStartTask,
@@ -818,12 +890,16 @@ export default function App(): ReactElement {
 						clineProviderSettings={settingsRuntimeProjectConfig?.clineProviderSettings ?? null}
 						featurebaseFeedbackState={featurebaseFeedbackState}
 						onSelectProject={(projectId) => {
+							setIsAllProjectsViewOpen(false);
+							pendingAllProjectsTaskOpenRef.current = null;
 							void handleSelectProject(projectId);
 						}}
 						onRemoveProject={handleRemoveProject}
 						onAddProject={() => {
 							void handleAddProject();
 						}}
+						isAllProjectsView={isAllProjectsViewOpen}
+						onSelectAllProjectsView={hasNoProjects ? undefined : handleSelectAllProjectsView}
 						sidebarWidth={sidebarLayout.sidebarWidth}
 						setExpandedSidebarWidth={sidebarLayout.setExpandedSidebarWidth}
 						isCollapsed={sidebarLayout.isCollapsed}
@@ -893,7 +969,16 @@ export default function App(): ReactElement {
 							aria-hidden={selectedCard ? true : undefined}
 							style={selectedCard ? { visibility: "hidden" } : undefined}
 						>
-							{shouldShowProjectLoadingState ? (
+							{isAllProjectsViewOpen ? (
+								<AllProjectsBoard
+									cards={allProjectsCards}
+									failedProjectIds={allProjectsFailedProjectIds}
+									isLoading={isAllProjectsLoading}
+									error={allProjectsError}
+									onRetry={refreshAllProjectsState}
+									onOpenCard={handleOpenAllProjectsCard}
+								/>
+							) : shouldShowProjectLoadingState ? (
 								<div className="flex flex-1 min-h-0 items-center justify-center bg-surface-0">
 									<Spinner size={30} />
 								</div>

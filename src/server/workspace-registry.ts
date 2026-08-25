@@ -78,6 +78,7 @@ export interface WorkspaceRegistry {
 		currentProjectId: string | null;
 		projects: RuntimeProjectSummary[];
 	}>;
+	listProjectsLight: () => Promise<Array<{ id: string; path: string; name: string }>>;
 	resolveWorkspaceForStream: (
 		requestedWorkspaceId: string | null,
 		options?: {
@@ -351,6 +352,18 @@ export async function createWorkspaceRegistry(deps: CreateWorkspaceRegistryDepen
 		};
 	};
 
+	const listProjectsLight = async (): Promise<Array<{ id: string; path: string; name: string }>> => {
+		const projects = await listWorkspaceIndexEntries();
+		return projects.map((project) => {
+			const summary = toProjectSummary({
+				workspaceId: project.workspaceId,
+				repoPath: project.repoPath,
+				taskCounts: createEmptyProjectTaskCounts(),
+			});
+			return { id: summary.id, path: summary.path, name: summary.name };
+		});
+	};
+
 	const resolveWorkspaceForStream = async (
 		requestedWorkspaceId: string | null,
 		options?: {
@@ -463,6 +476,7 @@ export async function createWorkspaceRegistry(deps: CreateWorkspaceRegistryDepen
 		createProjectSummary: toProjectSummary,
 		buildWorkspaceStateSnapshot,
 		buildProjectsPayload,
+		listProjectsLight,
 		resolveWorkspaceForStream,
 		listManagedWorkspaces: () => {
 			return Array.from(terminalManagersByWorkspaceId.entries()).map(([workspaceId, terminalManager]) => ({

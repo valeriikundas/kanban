@@ -1,6 +1,6 @@
 import * as Collapsible from "@radix-ui/react-collapsible";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { ChevronDown, ChevronUp, Ellipsis, ExternalLink, Info, Lightbulb, Plus, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Ellipsis, ExternalLink, Info, LayoutGrid, Lightbulb, Plus, X } from "lucide-react";
 import { type MouseEvent as ReactMouseEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { canShowFeaturebaseFeedbackButton } from "@/components/featurebase-feedback-button";
 import { Button } from "@/components/ui/button";
@@ -60,6 +60,8 @@ export function ProjectNavigationPanel({
 	onSelectProject,
 	onRemoveProject,
 	onAddProject,
+	isAllProjectsView = false,
+	onSelectAllProjectsView,
 	sidebarWidth,
 	setExpandedSidebarWidth,
 	isCollapsed,
@@ -79,6 +81,8 @@ export function ProjectNavigationPanel({
 	onSelectProject: (projectId: string) => void;
 	onRemoveProject: (projectId: string) => Promise<boolean>;
 	onAddProject: () => void;
+	isAllProjectsView?: boolean;
+	onSelectAllProjectsView?: () => void;
 	sidebarWidth: number;
 	setExpandedSidebarWidth: (width: number) => void;
 	isCollapsed: boolean;
@@ -359,11 +363,33 @@ export function ProjectNavigationPanel({
 							</div>
 						) : null}
 
+						{onSelectAllProjectsView ? (
+							<button
+								type="button"
+								className={cn(
+									"kb-project-row flex cursor-pointer items-center gap-1.5 rounded-md",
+									isAllProjectsView
+										? "bg-surface-4 text-text-primary border border-border"
+										: "text-text-secondary hover:text-text-primary border border-transparent",
+								)}
+								style={{ padding: "6px 8px" }}
+								onClick={() => {
+									onSelectAllProjectsView();
+									if (isMobile) {
+										setCollapsed(true);
+									}
+								}}
+							>
+								<LayoutGrid size={14} className="shrink-0" />
+								<span className="text-sm font-medium">All Projects</span>
+							</button>
+						) : null}
+
 						{sortedProjects.map((project) => (
 							<ProjectRow
 								key={project.id}
 								project={project}
-								isCurrent={currentProjectId === project.id}
+								isCurrent={!isAllProjectsView && currentProjectId === project.id}
 								removingProjectId={removingProjectId}
 								onSelect={(projectId) => {
 									onSelectProject(projectId);

@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { notifyError, showAppToast } from "@/components/app-toaster";
-import { buildProjectPathname, parseProjectIdFromPathname } from "@/hooks/app-utils";
+import {
+	ALL_PROJECTS_PATHNAME,
+	buildProjectPathname,
+	isAllProjectsPathname,
+	parseProjectIdFromPathname,
+} from "@/hooks/app-utils";
 import { getRuntimeTrpcClient } from "@/runtime/trpc-client";
 import { useRuntimeStateStream } from "@/runtime/use-runtime-state-stream";
 import { isLocalhostAccess } from "@/utils/localhost-detection";
@@ -36,6 +41,8 @@ export function parseRemovedProjectPathFromStreamError(streamError: string | nul
 
 interface UseProjectNavigationInput {
 	onProjectSwitchStart: () => void;
+	isAllProjectsViewOpen: boolean;
+	onAllProjectsViewOpenChangeRequested: (open: boolean) => void;
 }
 
 export interface UseProjectNavigationResult {
@@ -66,7 +73,11 @@ export interface UseProjectNavigationResult {
 	resetProjectNavigationState: () => void;
 }
 
-export function useProjectNavigation({ onProjectSwitchStart }: UseProjectNavigationInput): UseProjectNavigationResult {
+export function useProjectNavigation({
+	onProjectSwitchStart,
+	isAllProjectsViewOpen,
+	onAllProjectsViewOpenChangeRequested,
+}: UseProjectNavigationInput): UseProjectNavigationResult {
 	const [requestedProjectId, setRequestedProjectId] = useState<string | null>(() => {
 		if (typeof window === "undefined") {
 			return null;
@@ -196,13 +207,22 @@ export function useProjectNavigation({ onProjectSwitchStart }: UseProjectNavigat
 		if (typeof window === "undefined") {
 			return;
 		}
-		const nextProjectId = parseProjectIdFromPathname(window.location.pathname);
+		const pathname = window.location.pathname;
+		if (isAllProjectsPathname(pathname)) {
+			onAllProjectsViewOpenChangeRequested(true);
+			return;
+		}
+		onAllProjectsViewOpenChangeRequested(false);
+		const nextProjectId = parseProjectIdFromPathname(pathname);
 		setRequestedProjectId(nextProjectId);
-	}, []);
+	}, [onAllProjectsViewOpenChangeRequested]);
 	useWindowEvent("popstate", handlePopState);
 
 	useEffect(() => {
 		if (typeof window === "undefined") {
+			return;
+		}
+		if (isAllProjectsViewOpen) {
 			return;
 		}
 		if (!currentProjectId) {
@@ -214,7 +234,21 @@ export function useProjectNavigation({ onProjectSwitchStart }: UseProjectNavigat
 			return;
 		}
 		window.history.replaceState({}, "", `${nextPathname}${nextUrl.search}${nextUrl.hash}`);
-	}, [currentProjectId]);
+	}, [currentProjectId, isAllProjectsViewOpen]);
+
+	useEffect(() => {
+		if (typeof window === "undefined") {
+			return;
+		}
+		if (!isAllProjectsViewOpen) {
+			return;
+		}
+		const nextUrl = new URL(window.location.href);
+		if (nextUrl.pathname === ALL_PROJECTS_PATHNAME) {
+			return;
+		}
+		window.history.replaceState({}, "", `${ALL_PROJECTS_PATHNAME}${nextUrl.search}${nextUrl.hash}`);
+	}, [isAllProjectsViewOpen]);
 
 	useEffect(() => {
 		if (typeof window === "undefined") {

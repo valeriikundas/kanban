@@ -1,6 +1,47 @@
 import { describe, expect, it } from "vitest";
 
-import { buildDetailTaskUrl, parseDetailTaskIdFromSearch } from "@/hooks/app-utils";
+import {
+	buildDetailTaskUrl,
+	buildProjectPathname,
+	isAllProjectsPathname,
+	parseDetailTaskIdFromSearch,
+	parseProjectIdFromPathname,
+} from "@/hooks/app-utils";
+
+describe("isAllProjectsPathname", () => {
+	it("returns true for the reserved /all path", () => {
+		expect(isAllProjectsPathname("/all")).toBe(true);
+		expect(isAllProjectsPathname("/all/")).toBe(true);
+	});
+
+	it("returns false for project paths and root", () => {
+		expect(isAllProjectsPathname("/")).toBe(false);
+		expect(isAllProjectsPathname("/my-project")).toBe(false);
+		expect(isAllProjectsPathname("/allotment")).toBe(false);
+	});
+});
+
+describe("parseProjectIdFromPathname", () => {
+	it("extracts a decoded project id from the first path segment", () => {
+		expect(parseProjectIdFromPathname("/my-project")).toBe("my-project");
+		expect(parseProjectIdFromPathname("/my%20project")).toBe("my project");
+	});
+
+	it("returns null for the root path and the reserved /all path", () => {
+		expect(parseProjectIdFromPathname("/")).toBeNull();
+		expect(parseProjectIdFromPathname("/all")).toBeNull();
+	});
+
+	it("returns null for an unparseable segment", () => {
+		expect(parseProjectIdFromPathname("/%")).toBeNull();
+	});
+});
+
+describe("buildProjectPathname", () => {
+	it("encodes the project id into a leading path segment", () => {
+		expect(buildProjectPathname("my project")).toBe("/my%20project");
+	});
+});
 
 describe("parseDetailTaskIdFromSearch", () => {
 	it("returns the selected task id when present", () => {
