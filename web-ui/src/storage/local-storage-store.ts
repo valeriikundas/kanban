@@ -20,6 +20,7 @@ export enum LocalStorageKey {
 	NotificationBadgeClearEvent = "kanban.notification-badge-clear.v1",
 	TabVisibilityPresence = "kanban.tab-visibility-presence.v1",
 	Theme = "kanban.theme",
+	ProjectRecency = "kanban.project-recency.v1",
 }
 
 export const LAYOUT_CUSTOMIZATION_LOCAL_STORAGE_KEYS = [

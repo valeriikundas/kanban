@@ -1,7 +1,15 @@
 import * as Collapsible from "@radix-ui/react-collapsible";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { ChevronDown, ChevronUp, Ellipsis, ExternalLink, Info, LayoutGrid, Lightbulb, Plus, X } from "lucide-react";
-import { type MouseEvent as ReactMouseEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import {
+	type MouseEvent as ReactMouseEvent,
+	type ReactNode,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { canShowFeaturebaseFeedbackButton } from "@/components/featurebase-feedback-button";
 import { Button } from "@/components/ui/button";
 import { ClineIcon } from "@/components/ui/cline-icon";
@@ -29,6 +37,7 @@ import {
 } from "@/storage/local-storage-store";
 import { formatPathForDisplay } from "@/utils/path-display";
 import { isMacPlatform, modifierKeyLabel } from "@/utils/platform";
+import { sortProjectsByRecency, touchProjectRecency } from "@/utils/project-recency";
 import { useUnmount, useWindowEvent } from "@/utils/react-use";
 
 const COLLAPSED_WIDTH = 48;
@@ -88,7 +97,28 @@ export function ProjectNavigationPanel({
 	isCollapsed: boolean;
 	setSidebarCollapsed: (collapsed: boolean, persist?: boolean) => void;
 }): React.ReactElement {
-	const sortedProjects = [...projects].sort((a, b) => a.path.localeCompare(b.path));
+	const [recencyVersion, setRecencyVersion] = useState(0);
+	const sortedProjects = useMemo(
+		() => sortProjectsByRecency(projects),
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[projects, recencyVersion],
+	);
+
+	const handleSelectProject = useCallback(
+		(projectId: string) => {
+			touchProjectRecency(projectId);
+			setRecencyVersion((version) => version + 1);
+			onSelectProject(projectId);
+		},
+		[onSelectProject],
+	);
+
+	useEffect(() => {
+		if (currentProjectId) {
+			touchProjectRecency(currentProjectId);
+			setRecencyVersion((version) => version + 1);
+		}
+	}, [currentProjectId]);
 	const shouldShowFeaturebaseFeedback = canShowFeaturebaseFeedbackButton({
 		selectedAgentId,
 		clineProviderSettings,
@@ -238,7 +268,7 @@ export function ProjectNavigationPanel({
 								if (isMobile) {
 									setCollapsed(false);
 								}
-								onSelectProject(project.id);
+								handleSelectProject(project.id);
 							}}
 							className={cn(
 								"rounded-md text-xs font-semibold shrink-0 border-0 cursor-pointer flex items-center justify-center",
@@ -392,7 +422,7 @@ export function ProjectNavigationPanel({
 								isCurrent={!isAllProjectsView && currentProjectId === project.id}
 								removingProjectId={removingProjectId}
 								onSelect={(projectId) => {
-									onSelectProject(projectId);
+									handleSelectProject(projectId);
 									if (isMobile) {
 										setCollapsed(true);
 									}
