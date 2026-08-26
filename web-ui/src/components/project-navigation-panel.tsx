@@ -58,6 +58,7 @@ export function ProjectNavigationPanel({
 	projects,
 	isLoadingProjects = false,
 	currentProjectId,
+	projectRecencyVersion,
 	removingProjectId,
 	activeSection,
 	onActiveSectionChange,
@@ -79,6 +80,7 @@ export function ProjectNavigationPanel({
 	projects: RuntimeProjectSummary[];
 	isLoadingProjects?: boolean;
 	currentProjectId: string | null;
+	projectRecencyVersion: number;
 	removingProjectId: string | null;
 	activeSection: "projects" | "agent";
 	onActiveSectionChange: (section: "projects" | "agent") => void;
@@ -101,7 +103,7 @@ export function ProjectNavigationPanel({
 	const sortedProjects = useMemo(
 		() => sortProjectsByRecency(projects),
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-		[projects, recencyVersion],
+		[projects, recencyVersion, projectRecencyVersion],
 	);
 
 	const handleSelectProject = useCallback(
@@ -112,13 +114,6 @@ export function ProjectNavigationPanel({
 		},
 		[onSelectProject],
 	);
-
-	useEffect(() => {
-		if (currentProjectId) {
-			touchProjectRecency(currentProjectId);
-			setRecencyVersion((version) => version + 1);
-		}
-	}, [currentProjectId]);
 	const shouldShowFeaturebaseFeedback = canShowFeaturebaseFeedbackButton({
 		selectedAgentId,
 		clineProviderSettings,

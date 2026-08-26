@@ -147,6 +147,7 @@ export default function App(): ReactElement {
 		setIsAddProjectDialogOpen,
 		pendingNativeGitInitPath,
 		resetProjectNavigationState,
+		projectRecencyVersion,
 	} = useProjectNavigation({
 		onProjectSwitchStart: handleProjectSwitchStart,
 		isAllProjectsViewOpen,
@@ -881,6 +882,7 @@ export default function App(): ReactElement {
 						projects={displayedProjects}
 						isLoadingProjects={isProjectListLoading}
 						currentProjectId={navigationCurrentProjectId}
+						projectRecencyVersion={projectRecencyVersion}
 						removingProjectId={removingProjectId}
 						activeSection={homeSidebarSection}
 						onActiveSectionChange={setHomeSidebarSection}

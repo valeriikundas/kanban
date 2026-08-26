@@ -132,6 +132,7 @@ describe("ProjectNavigationPanel width persistence", () => {
 				<PanelWithLayout
 					projects={PROJECTS}
 					currentProjectId="project-1"
+					projectRecencyVersion={0}
 					removingProjectId={null}
 					activeSection="projects"
 					onActiveSectionChange={() => {}}

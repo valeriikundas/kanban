@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { notifyError, showAppToast } from "@/components/app-toaster";
 import {
@@ -10,6 +10,7 @@ import {
 import { getRuntimeTrpcClient } from "@/runtime/trpc-client";
 import { useRuntimeStateStream } from "@/runtime/use-runtime-state-stream";
 import { isLocalhostAccess } from "@/utils/localhost-detection";
+import { touchProjectRecency } from "@/utils/project-recency";
 import { useWindowEvent } from "@/utils/react-use";
 
 const REMOVED_PROJECT_ERROR_PREFIX = "Project no longer exists on disk and was removed:";
@@ -71,6 +72,7 @@ export interface UseProjectNavigationResult {
 	handleAddProjectSuccess: (projectId: string) => void;
 	handleRemoveProject: (projectId: string) => Promise<boolean>;
 	resetProjectNavigationState: () => void;
+	projectRecencyVersion: number;
 }
 
 export function useProjectNavigation({
@@ -103,6 +105,16 @@ export function useProjectNavigation({
 		isRuntimeDisconnected,
 		hasReceivedSnapshot,
 	} = useRuntimeStateStream(requestedProjectId);
+
+	const [projectRecencyVersion, setProjectRecencyVersion] = useState(0);
+	const previousCurrentProjectIdRef = useRef<string | null>(null);
+	useEffect(() => {
+		if (currentProjectId && previousCurrentProjectIdRef.current !== currentProjectId) {
+			touchProjectRecency(currentProjectId);
+			setProjectRecencyVersion((version) => version + 1);
+		}
+		previousCurrentProjectIdRef.current = currentProjectId;
+	}, [currentProjectId]);
 
 	const hasNoProjects = hasReceivedSnapshot && projects.length === 0 && currentProjectId === null;
 	const isProjectSwitching = requestedProjectId !== null && requestedProjectId !== currentProjectId && !hasNoProjects;
@@ -321,5 +333,6 @@ export function useProjectNavigation({
 		handleAddProjectSuccess,
 		handleRemoveProject,
 		resetProjectNavigationState,
+		projectRecencyVersion,
 	};
 }
