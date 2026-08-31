@@ -270,6 +270,11 @@ export default function App(): ReactElement {
 		},
 	});
 
+	const handleBackToAllProjects = useCallback(() => {
+		handleBack();
+		handleSelectAllProjectsView();
+	}, [handleBack, handleSelectAllProjectsView]);
+
 	useEffect(() => {
 		replaceWorkspaceMetadata(workspaceMetadata);
 	}, [workspaceMetadata]);
@@ -911,7 +916,7 @@ export default function App(): ReactElement {
 				<div className="flex flex-col flex-1 min-w-0 overflow-hidden">
 					<TopBar
 						onToggleSidebar={!selectedCard ? handleToggleSidebar : undefined}
-						onBack={selectedCard ? handleBack : undefined}
+						onBack={selectedCard ? handleBackToAllProjects : undefined}
 						workspacePath={navbarWorkspacePath}
 						isWorkspacePathLoading={shouldShowProjectLoadingState}
 						workspaceHint={navbarWorkspaceHint}
